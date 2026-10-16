@@ -70,6 +70,15 @@ object DebugLog {
             runCatching { crashFile.delete() }
         }
         sb.append(exitReasons(activity))
+        if (Build.VERSION.SDK_INT >= 30) {
+            runCatching {
+                val am = activity.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                am.getHistoricalProcessExitReasons(activity.packageName, 0, 3).forEach {
+                    sb.append("--- Last exit: reason ${it.reason}, status ${it.status}, ${it.description} ---\n")
+                }
+                sb.append("\n")
+            }
+        }
         var logcat = readLogcat()
         if (logcat.length > MAX_LOG_CHARS) logcat = "...(trimmed)\n" + logcat.substring(logcat.length - MAX_LOG_CHARS)
         sb.append("--- logcat (this app) ---\n").append(logcat)
