@@ -56,8 +56,7 @@ jobs:
       - name: Report
         if: always()
         run: |
-          echo "pid: $(cat pid.txt 2>/dev/null)"
-          MSG=$( (echo "pid: $(cat pid.txt 2>/dev/null)"; grep -iE "gridcraft|FATAL|panicked|internal error|SIGSEGV|SIGABRT|AndroidRuntime|Abort message|backtrace|wgpu|graphics|#[0-9]+ pc" smoke.log | tail -150) | sed ':a;N;$!ba;s/\n/%0A/g')
+          MSG=$( (cat pid.txt; echo ---files; cat files.txt; echo ---app; grep -v "AppsFilter\|nativeloader" app.log | tail -120) | sed ':a;N;$!ba;s/\n/%0A/g')
           echo "::error title=Emulator log::$MSG"
       - uses: actions/upload-artifact@v4
         if: always()
