@@ -41,7 +41,7 @@ object DebugLog {
         }
 
         if (crashFile.exists() || diedLastTime) {
-            activity.window.decorView.postDelayed({ show(activity) }, 1500)
+            activity.window.decorView.postDelayed({ show(activity) }, 250)
         }
     }
 
@@ -69,10 +69,28 @@ object DebugLog {
             sb.append("\n\n")
             runCatching { crashFile.delete() }
         }
+        sb.append(exitReasons(activity))
         var logcat = readLogcat()
         if (logcat.length > MAX_LOG_CHARS) logcat = "...(trimmed)\n" + logcat.substring(logcat.length - MAX_LOG_CHARS)
         sb.append("--- logcat (this app) ---\n").append(logcat)
         return sb.toString()
+    }
+
+    /** Android's own record of how the last runs ended (crash, native crash, killed…). */
+    private fun exitReasons(activity: Activity): String {
+        if (Build.VERSION.SDK_INT < 30) return ""
+        return runCatching {
+            val am = activity.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            val sb = StringBuilder("--- how the last runs ended ---\n")
+            for (e in am.getHistoricalProcessExitReasons(activity.packageName, 0, 3)) {
+                sb.append("reason=${e.reason} status=${e.status} ${e.description ?: ""}\n")
+                // A native crash carries its tombstone (signal, backtrace).
+                if (e.reason == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE) {
+                    runCatching { e.traceInputStream?.bufferedReader()?.readText()?.take(6000) }.getOrNull()?.let { sb.append(it).append('\n') }
+                }
+            }
+            sb.append('\n').toString()
+        }.getOrDefault("")
     }
 
     /** An app may read its own log lines without any permission. */
