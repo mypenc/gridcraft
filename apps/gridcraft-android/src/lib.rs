@@ -157,7 +157,8 @@ fn deliver_picked(host: &AndroidApp, purpose: &str, inbox: Inbox) {
                 }
             }
             Ok(Ok(None)) => {}
-            Ok(Err(e)) | Err(e) => log::warn!("file picker: {e}"),
+            Ok(Err(e)) => log::warn!("file picker: {e}"),
+            Err(e) => log::warn!("file picker: {e}"),
         }
         bridge::wake();
     });
@@ -188,7 +189,8 @@ fn services(host: &AndroidApp) -> Services {
                     }
                 }
                 Ok(Ok(None)) => {}
-                Ok(Err(e)) | Err(e) => log::warn!("save picker: {e}"),
+                Ok(Err(e)) => log::warn!("save picker: {e}"),
+                Err(e) => log::warn!("save picker: {e}"),
             });
         })),
         open_url: Some(Box::new(move |url: &str| bridge::open_url(&link, url))),
