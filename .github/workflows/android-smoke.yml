@@ -1,0 +1,76 @@
+name: Android smoke test
+
+# Boots the app in an emulator and reports its log: a start-up crash shows up as an annotation.
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: never
+  NDK_VERSION: "26.3.11579264"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.95"
+          targets: x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: android-x86_64-${{ hashFiles('android/scripts/vendor-winit.sh', 'android/patches/*.patch') }}
+          cache-all-crates: true
+          cache-on-failure: true
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0 ndk;${{ env.NDK_VERSION }}"
+      - run: echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build (x86_64 library, debug-signed APK)
+        run: |
+          chmod +x android/scripts/build.sh
+          android/scripts/build.sh --no-apk --abi x86_64
+          cd android && gradle assembleDebug
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Run in emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: |
+            APK=$(ls android/app/build/outputs/apk/debug/*.apk | head -1)
+            adb install -r "$APK"
+            adb logcat -c
+            adb shell am start -n ai.storyteller.gridcraft/.MainActivity
+            sleep 45
+            adb logcat -d -t 4000 > smoke.log || true
+            (adb shell pidof ai.storyteller.gridcraft > pid.txt) || echo DIED > pid.txt
+            adb exec-out screencap -p > smoke.png || true
+      - name: Report
+        if: always()
+        run: |
+          echo "pid: $(cat pid.txt 2>/dev/null)"
+          MSG=$( (echo "pid: $(cat pid.txt 2>/dev/null)"; grep -iE "gridcraft|FATAL|panicked|internal error|SIGSEGV|SIGABRT|AndroidRuntime|Abort message|backtrace|wgpu|graphics|#[0-9]+ pc" smoke.log | tail -150) | sed ':a;N;$!ba;s/\n/%0A/g')
+          echo "::error title=Emulator log::$MSG"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke
+          path: |
+            smoke.log
+            smoke.png
