@@ -84,7 +84,8 @@ jobs:
           code=${PIPESTATUS[0]}
           if [ "$code" != 0 ]; then
             # Surface the compiler's errors as one annotation (the raw log is not always readable by tools).
-            MSG=$(grep -E '^(error|warning: unused)' -A9 build.log | head -150 | sed ':a;N;$!ba;s/\n/%0A/g')
+            sed -i 's/\x1b\[[0-9;]*m//g' build.log
+            MSG=$( (grep -E 'error' -A9 build.log | head -120; echo ----; tail -25 build.log) | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=Rust build errors::$MSG"
           fi
           exit $code
