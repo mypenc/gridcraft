@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- OpenGL ES 3 is the floor; Vulkan is preferred when present. -->
+    <uses-feature android:glEsVersion="0x00030000" android:required="true" />
+    <uses-feature android:name="android.hardware.vulkan.level" android:required="false" />
+    <!-- Touch is the main input, but a mouse, keyboard or no touchscreen (DeX, Chromebooks) must install. -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="GridCraft"
+        android:largeHeap="true"
+        android:theme="@style/Theme.GridCraft">
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|smallestScreenSize|density|colorMode"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustNothing|stateAlwaysHidden">
+
+            <meta-data android:name="android.app.lib_name" android:value="gridcraft_android" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- "Open with GridCraft" on a spreadsheet, CSV or OpenDocument file. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.xlsx" />
+                <data android:pathPattern=".*\\.xlsm" />
+                <data android:pathPattern=".*\\.xls" />
+                <data android:pathPattern=".*\\.xlsb" />
+                <data android:pathPattern=".*\\.ods" />
+                <data android:pathPattern=".*\\.csv" />
+                <data android:pathPattern=".*\\.tsv" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

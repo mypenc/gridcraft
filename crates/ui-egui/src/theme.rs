@@ -252,7 +252,7 @@ fn candidates(role: &str) -> Vec<(String, u32)> {
     let mac_sys = "/System/Library/Fonts";
     let mac_sup = "/System/Library/Fonts/Supplemental";
     let win = std::env::var("WINDIR").map(|w| format!("{w}\\Fonts")).unwrap_or_else(|_| "C:\\Windows\\Fonts".into());
-    let lin = ["/usr/share/fonts/truetype", "/usr/share/fonts", "/usr/local/share/fonts", "/usr/share/fonts/TTF"];
+    let lin = ["/system/fonts", "/usr/share/fonts/truetype", "/usr/share/fonts", "/usr/local/share/fonts", "/usr/share/fonts/TTF"];
     let mut v: Vec<(String, u32)> = Vec::new();
     let mut add = |s: String, i: u32| v.push((s, i));
     match role {
@@ -501,7 +501,8 @@ fn fallback_faces(han: HanOrder) -> Vec<(&'static str, Vec<(String, u32)>)> {
 /// `truetype/wqy`), Fedora (`google-noto-cjk`), Arch (`noto-cjk`, `wenquanyi`), plus local and
 /// flat layouts.
 #[cfg(not(target_arch = "wasm32"))]
-const LINUX_CJK_DIRS: [&str; 10] = [
+const LINUX_CJK_DIRS: [&str; 11] = [
+    "/system/fonts",
     "/usr/share/fonts/opentype/noto",
     "/usr/share/fonts/google-noto-cjk",
     "/usr/share/fonts/noto-cjk",
@@ -581,7 +582,7 @@ fn thai() -> Vec<(String, u32)> {
     let mac_sys = "/System/Library/Fonts";
     let mac_sup = "/System/Library/Fonts/Supplemental";
     let win = std::env::var("WINDIR").map(|w| format!("{w}\\Fonts")).unwrap_or_else(|_| "C:\\Windows\\Fonts".into());
-    let lin = ["/usr/share/fonts/truetype/noto", "/usr/share/fonts/opentype/noto", "/usr/share/fonts/truetype", "/usr/share/fonts"];
+    let lin = ["/system/fonts", "/usr/share/fonts/truetype/noto", "/usr/share/fonts/opentype/noto", "/usr/share/fonts/truetype", "/usr/share/fonts"];
     let mut v: Vec<(String, u32)> = Vec::new();
     v.push((format!("{win}\\LeelawUI.ttf"), 0)); // Leelawadee UI
     v.push((format!("{win}\\tahoma.ttf"), 0)); // Tahoma
@@ -603,7 +604,7 @@ fn hebrew() -> Vec<(String, u32)> {
     let mac_sys = "/System/Library/Fonts";
     let mac_sup = "/System/Library/Fonts/Supplemental";
     let win = std::env::var("WINDIR").map(|w| format!("{w}\\Fonts")).unwrap_or_else(|_| "C:\\Windows\\Fonts".into());
-    let lin = ["/usr/share/fonts/truetype/noto", "/usr/share/fonts/opentype/noto", "/usr/share/fonts/truetype", "/usr/share/fonts"];
+    let lin = ["/system/fonts", "/usr/share/fonts/truetype/noto", "/usr/share/fonts/opentype/noto", "/usr/share/fonts/truetype", "/usr/share/fonts"];
     let mut v: Vec<(String, u32)> = Vec::new();
     v.push((format!("{win}\\david.ttf"), 0)); // David
     v.push((format!("{win}\\frank.ttf"), 0)); // FrankRuehl

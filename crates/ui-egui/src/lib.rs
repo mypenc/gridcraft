@@ -32,6 +32,7 @@ pub mod selection_glide;
 pub mod tabs;
 pub mod text_box;
 pub mod theme;
+pub mod touch;
 pub mod widgets;
 
 use std::collections::HashMap;
@@ -76,6 +77,16 @@ pub struct UiState {
     /// [`INTERFACE_SCALE_MIN`]..=[`INTERFACE_SCALE_MAX`]; a malformed saved value reads as 100.
     #[serde(deserialize_with = "lenient_interface_scale")]
     pub interface_scale: u16,
+    /// Touch bar shown, as the user left it; `None` follows the platform (on for Android).
+    pub touch_bar: Option<bool>,
+    /// Keep the on-screen keyboard from opening.
+    pub block_keyboard: bool,
+    /// The touch bar's own size (1.0 = normal), apart from the interface scale.
+    pub touch_bar_scale: Option<f32>,
+    /// Where the touch bar was left (bottom centre, screen points).
+    pub touch_bar_pos: Option<[f32; 2]>,
+    /// Hide the status bar and the notch area (Android).
+    pub fullscreen: bool,
 }
 
 pub const INTERFACE_SCALE_MIN: u16 = 75;
@@ -107,6 +118,11 @@ impl Default for UiState {
             keytip_invoke: None,
             language: i18n::Language::En,
             interface_scale: 100,
+            touch_bar: None,
+            block_keyboard: false,
+            touch_bar_scale: None,
+            touch_bar_pos: None,
+            fullscreen: false,
         }
     }
 }
@@ -263,6 +279,9 @@ pub struct SheetApp {
     /// holding other text. Once the cut has been pasted, Paste leaves this text alone.
     cut_text: Option<String>,
     pub started: f64,
+    /// Touch layer: finger gestures → mouse events, plus the on-screen modifier bar. The host
+    /// calls `touch.process` from its `raw_input_hook` and [`SheetApp::touch_frame`] each frame.
+    pub touch: touch::Touch,
 }
 
 impl SheetApp {
@@ -306,6 +325,46 @@ impl SheetApp {
             clipboard_text_at_copy: None,
             cut_text: None,
             started: now_ms(),
+            touch: touch::Touch::new(),
+        }
+    }
+
+    /// Copy the touch settings into `ui` (call before saving the preferences).
+    pub fn collect_touch_prefs(&mut self) {
+        self.ui.touch_bar = Some(self.touch.bar_visible);
+        self.ui.block_keyboard = self.touch.block_keyboard;
+        self.ui.touch_bar_scale = Some(self.touch.bar_scale);
+        self.ui.touch_bar_pos = self.touch.bar_pos.map(|p| [p.x, p.y]);
+        self.ui.fullscreen = self.touch.fullscreen;
+    }
+
+    /// Apply the saved touch settings (call after loading the preferences).
+    pub fn apply_touch_prefs(&mut self) {
+        if let Some(on) = self.ui.touch_bar {
+            self.touch.bar_visible = on;
+        }
+        self.touch.block_keyboard = self.ui.block_keyboard;
+        if let Some(scale) = self.ui.touch_bar_scale {
+            self.touch.set_bar_scale(scale);
+        }
+        self.touch.restore_bar_pos(self.ui.touch_bar_pos);
+        self.touch.fullscreen = self.ui.fullscreen;
+    }
+
+    /// Touch layer upkeep, once per frame from the host (after `ui`): touch-sized metrics, the
+    /// on-screen bar, the keyboard filter, and the undo/redo the bar asked for.
+    pub fn touch_frame(&mut self, ctx: &egui::Context) {
+        self.touch.apply_style(ctx);
+        self.touch.show_bar(ctx);
+        self.touch.filter_ime(ctx, None);
+        for a in self.touch.take_actions() {
+            let id = match a {
+                touch::Action::Undo => "edit.undo",
+                touch::Action::Redo => "edit.redo",
+            };
+            if let Err(e) = self.run(id, json!({})) {
+                log::debug!("{id}: {e}");
+            }
         }
     }
 
@@ -575,6 +634,32 @@ impl SheetApp {
         let r = match id {
             "ui.printSettings" => printing::settings(&mut self.printing, p, self.services.printers.as_ref()),
             "ui.printSubmit" => self.submit_print(p.clone()),
+            "ui.touchBar" => {
+                let on = p.get("value").and_then(Json::as_bool).unwrap_or(!self.touch.bar_visible);
+                self.touch.bar_visible = on;
+                Ok(json!({"touchBar": on}))
+            }
+            // The bar's own size: `value` is the scale (0.6 to 2.0), apart from the interface size.
+            "ui.touchBarSize" => {
+                let v = p.get("value").and_then(Json::as_f64).map_or(1.0, |v| v as f32);
+                self.touch.set_bar_scale(v);
+                Ok(json!({"touchBarSize": self.touch.bar_scale}))
+            }
+            "ui.fullscreen" => {
+                let on = p.get("value").and_then(Json::as_bool).unwrap_or(!self.touch.fullscreen);
+                self.touch.fullscreen = on;
+                Ok(json!({"fullscreen": on}))
+            }
+            "ui.documentsFolder" => {
+                let on = p.get("value").and_then(Json::as_bool).unwrap_or(!self.touch.docs_folder);
+                self.touch.docs_folder_request = Some(on);
+                Ok(json!({"documentsFolder": on}))
+            }
+            "ui.blockKeyboard" => {
+                let on = p.get("value").and_then(Json::as_bool).unwrap_or(!self.touch.block_keyboard);
+                self.touch.block_keyboard = on;
+                Ok(json!({"blockKeyboard": on}))
+            }
             "ui.ribbonTab" => {
                 self.ui.ribbon_tab = p.get("tab").and_then(Json::as_str).unwrap_or("Home").to_string();
                 Ok(Json::Null)

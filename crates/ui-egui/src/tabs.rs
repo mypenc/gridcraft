@@ -226,7 +226,9 @@ pub fn sheet_tabs(app: &mut SheetApp, ui: &mut Ui) {
 
 pub fn status_bar(app: &mut SheetApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
-    egui::Panel::bottom("status_bar").exact_size(26.0).frame(egui::Frame::NONE.fill(t.status_bar).inner_margin(egui::Margin::symmetric(12, 0))).show(
+    // Touch controls are taller than the 26 px strip and clipped its text: fit the row plus 4 px.
+    let status_h = if app.touch.enabled { ui.spacing().interact_size.y.max(26.0) + 4.0 } else { 26.0 };
+    egui::Panel::bottom("status_bar").exact_size(status_h).frame(egui::Frame::NONE.fill(t.status_bar).inner_margin(egui::Margin::symmetric(12, 0))).show(
         ui,
         |ui| {
             ui.horizontal_centered(|ui| {

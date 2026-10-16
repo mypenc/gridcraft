@@ -2148,6 +2148,21 @@ fn view(app: &mut SheetApp, ui: &mut Ui) {
             act(app, "view.headings", json!({"on": h}));
         }
     });
+    if app.touch.enabled {
+        sep(ui);
+        for (icon, label, cmd, on) in [
+            (Icon::Normal, "Touch\nBar", "ui.touchBar", app.touch.bar_visible),
+            (Icon::Freeze, "Block\nKeyboard", "ui.blockKeyboard", app.touch.block_keyboard),
+            (Icon::PageLayout, "Full\nScreen", "ui.fullscreen", app.touch.fullscreen),
+            (Icon::OpenFolder, "Documents\nFolder", "ui.documentsFolder", app.touch.docs_folder),
+        ] {
+            let shown = if on { format!("{label} ●") } else { label.to_string() };
+            let k = big_button(ui, icon, &shown, label, false);
+            if k.clicked() {
+                act(app, cmd, json!({"value": !on}));
+            }
+        }
+    }
     sep(ui);
     let __k = big_button(ui, Icon::Zoom, "Zoom", "Zoom…", false);
     control_keytip(app, ui, &__k, "dialog:zoom");
