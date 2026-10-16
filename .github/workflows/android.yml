@@ -79,7 +79,15 @@ jobs:
       - name: Build Rust library (arm64-v8a)
         run: |
           chmod +x android/scripts/build.sh
-          android/scripts/build.sh --no-apk
+          set +e
+          android/scripts/build.sh --no-apk 2>&1 | tee build.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" != 0 ]; then
+            # Surface the compiler's errors as one annotation (the raw log is not always readable by tools).
+            MSG=$(grep -E '^(error|warning: unused)' -A9 build.log | head -150 | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=Rust build errors::$MSG"
+          fi
+          exit $code
 
       # Step 2: package the APK.
       - name: Build release APK
